@@ -1,6 +1,5 @@
 #include "Plan.hpp"
 #include "Node.hpp"
-#include "kdtree.hpp"
 #include <math.h>
 #include <random>
 #include <fstream>
@@ -16,8 +15,8 @@ using namespace boost;
 Plan::Plan(int nDof):
 m_nDof(nDof)
 {
-	m_jointLowerLimit = 0;
-	m_jointUpperLimit = 2*M_PI;
+	m_jointLowerLimit = -M_PI;
+	m_jointUpperLimit = M_PI;
 
 }
 
@@ -321,16 +320,25 @@ Node* Plan::sampleNodeGoalBiasGaussian(double goalSampleProbability, double gaus
 	return sampledNode;
 }
 
-Plan::Vertex_t Plan::getNearestNeighbor(Node* node, Graph_t& graph)
+Plan::Vertex_t Plan::getNearestNeighbor(Node* node, Graph_t& graph, kdtree* kd)
 {
+	printf("=============Finding NN================\n");
+	kdres* q_near_kd = kd_nearest(kd, &node->GetAngles()[0]);
+	Vertex_t* q_near_n = (Vertex_t*) kd_res_item_data(q_near_kd);
+	kd_res_free(q_near_kd);
+
+	//=========================================================
+
 	Graph_t::vertex_iterator itVBegin, itVEnd; 
 	tie(itVBegin, itVEnd) = vertices(graph);
 	
 	double minDist = numeric_limits<double>::infinity();
 	Vertex_t nearestNeigbor;
-	
-	if (num_vertices(graph) == 0)
-		cout << "Graph Empty! \n";
+
+	// if (num_vertices(graph) == 0)
+	// 	cout << "Graph Empty! \n";
+
+
 	for (Graph_t::vertex_iterator it = itVBegin; it != itVEnd; ++it)
 	{	
 		double dist = calculateNodeDistance(getNodePtrFromVertex(*it, graph), node);
@@ -340,7 +348,25 @@ Plan::Vertex_t Plan::getNearestNeighbor(Node* node, Graph_t& graph)
 			nearestNeigbor = *it;
 		}
 	}
-	return nearestNeigbor;
+
+	if (nearestNeigbor != *q_near_n) {
+
+		printGraph(m_graph);
+		printf("***Mismatch***\n");
+		printf("node:\n");
+		node->PrintNode();
+		printf("brute force nn:\n");
+		getNodePtrFromVertex(nearestNeigbor, graph)->PrintNode();
+		printf("kdtree nn:\n");
+		getNodePtrFromVertex(*q_near_n, graph)->PrintNode();
+		getchar();
+	}
+	// else {
+	// 	printf("right\n");
+	// }
+
+	return *q_near_n;
+	// return nearestNeigbor;
 }
 
 std::vector<Plan::Vertex_t> Plan::getNeighborVertices(Node* node, double radius, Graph_t& graph)
@@ -374,7 +400,7 @@ double Plan::calculateNodeDistance(Node* node1, Node* node2)
 	{
 		dist += pow(angleDifference(node1Angles[i],node2Angles[i]),2);
 	}
-	dist = sqrt(dist);
+	// dist = sqrt(dist);
 	return dist;
 }
 

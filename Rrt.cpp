@@ -30,6 +30,12 @@ bool Rrt::RunPlanner()
 	cout << "**************** Running RRT ************* \n";
 	auto start = std::chrono::system_clock::now();
 	m_startVertex = addNodeToGraph(m_startNode, m_graph);
+
+  // Init KD
+  kdtree* kd;
+  kd = kd_create(m_nDof);
+  kd_insert(kd, &m_startNode->GetAngles()[0], &m_startVertex);
+
 	for (int i = 0; i < m_maxIterations; ++i)
 	{
 		if (i%1000 == 0)
@@ -37,7 +43,8 @@ bool Rrt::RunPlanner()
 		Node* sampledNode = sampleNodeGoalBias(m_goalBiasProbability, m_goalNode);
 		// Node* sampledNode = sampleNodeGoalBiasGaussian(m_goalBiasProbability, 0.25, m_goalNode);
 
-		Vertex_t nearestNeighborVertex = getNearestNeighbor(sampledNode, m_graph);
+		// Vertex_t nearestNeighborVertex = getNearestNeighbor(sampledNode, m_graph, kd);
+		Vertex_t nearestNeighborVertex = getNearestNeighbor(sampledNode, m_graph, kd);
 
 		Node* newNode = extend(sampledNode, getNodePtrFromVertex(nearestNeighborVertex, m_graph));
 		
@@ -47,6 +54,12 @@ bool Rrt::RunPlanner()
 		
 
 		Vertex_t newNodeVertex = addNodeToGraph(newNode, m_graph);
+
+		// printf("inserting\n");
+  // 		getNodePtrFromVertex(newNodeVertex, m_graph)->PrintNode();
+  // 		getchar();
+  		kd_insert(kd, &newNode->GetAngles()[0], &newNodeVertex);
+
 		addEdge(nearestNeighborVertex, newNodeVertex, m_graph);
 		double distToGoal = calculateNodeDistance(newNode,m_goalNode);
 		if (distToGoal < m_terminationDistance)
@@ -58,6 +71,8 @@ bool Rrt::RunPlanner()
 			m_numSamples.push_back(i+1);
 			return true;
 		}
+
+		// printGraph(m_graph);
 	}
 	return false;
 }
@@ -117,23 +132,26 @@ bool Rrt::RunPlanner()
  */
 void Rrt::GetPlan(std::vector<std::vector<double>>& path)
 {
-	Vertex_t nearestVertexToGoal = getNearestNeighbor(m_goalNode, m_graph);
-	
-	cout << "Start Node: ";
-	m_startNode->PrintNode();
-	
-	cout << "Goal Node: ";
-	m_goalNode->PrintNode();
-	
-	cout << "Final vertex in path: "; 
-	(getNodePtrFromVertex(nearestVertexToGoal, m_graph))->PrintNode();
 
-	double pathCost = getNodePtrFromVertex(nearestVertexToGoal, m_graph)->GetCost();
+	// Vertex_t nearestVertexToGoal = getNearestNeighbor(m_goalNode, m_graph);
+	
+	// cout << "Start Node: ";
+	// m_startNode->PrintNode();
+	
+	// cout << "Goal Node: ";
+	// m_goalNode->PrintNode();
+	
+	// cout << "Final vertex in path: "; 
+	// (getNodePtrFromVertex(nearestVertexToGoal, m_graph))->PrintNode();
 
-	cout << "Path cost: " << pathCost << endl;
-	m_pathCost.push_back(pathCost);
+	// double pathCost = getNodePtrFromVertex(nearestVertexToGoal, m_graph)->GetCost();
 
-	path = findPathFromVertexAToB(m_startVertex, nearestVertexToGoal, m_graph);
+	// cout << "Path cost: " << pathCost << endl;
+	// m_pathCost.push_back(pathCost);
+
+	// path = findPathFromVertexAToB(m_startVertex, nearestVertexToGoal, m_graph);
+
+
 
 	// *planLength = path.size();
 	// *plan = new double*[*planLength];
@@ -167,7 +185,8 @@ Node* Rrt::extend(Node* sampledNode, Node* nearestNeighborNode)
 
 	for (int i = 0; i < m_nDof; ++i)
 	{
-		newNodeAngles[i] = nearestNeighborNodeAngles[i] + m_eps*(angleDifference(sampledNodeAngles[i],nearestNeighborNodeAngles[i])/angleDiffNorm); 
+		newNodeAngles[i] = nearestNeighborNodeAngles[i] + m_eps*(angleDifference(sampledNodeAngles[i],nearestNeighborNodeAngles[i])/angleDiffNorm);
+		newNodeAngles[i] = wrapAngle(newNodeAngles[i]);
 	}
 	
 	Node* newNode = new Node(m_nDof, newNodeAngles);

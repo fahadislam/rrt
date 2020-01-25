@@ -4,6 +4,9 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <chrono>
 #include <ctime>
+
+#include "kdtree.h"
+
 class Node;
 // class Edge;
 
@@ -47,7 +50,7 @@ protected:
         return v;
     };
 
-    Vertex_t getNearestNeighbor(Node* node, Graph_t& graph);
+    Vertex_t getNearestNeighbor(Node* node, Graph_t& graph, kdtree* kd);
     std::vector<Vertex_t> getNeighborVertices(Node* node, double radius, Graph_t& graph);
     double calculateNodeDistance(Node* node1, Node* node2);
     Edge_t addEdge(Vertex_t vertex1, Vertex_t vertex2, Graph_t& graph);

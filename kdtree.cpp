@@ -34,6 +34,8 @@ OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <cmath>
+
 #include "kdtree.h"
 
 #if defined(WIN32) || defined(__WIN32__)
@@ -75,6 +77,33 @@ static void free_resnode(struct res_node*);
 #endif
 
 
+static
+double wrapAngle(double angle)
+{
+    // normalize to [-2*pi, 2*pi] range
+    if (std::fabs(angle) > 2.0 * M_PI) {
+        angle = std::fmod(angle, 2.0 * M_PI);
+    }
+
+    if (angle < -M_PI) {
+        angle += 2.0 * M_PI;
+    }
+    if (angle > M_PI) {
+        angle -= 2.0 * M_PI;
+    }
+
+    return angle;
+}
+
+static
+double angleDifference(double angle1, double angle2)
+{
+    // double diff = fmod(( angle2 - angle1 + 180 ),360) - 180;
+    // return diff < -180 ? diff + 360 : diff;
+    return wrapAngle(angle1-angle2);
+    // return angle1-angle2;
+
+}
 
 struct kdtree *kd_create(int k)
 {
@@ -318,7 +347,8 @@ static void kd_nearest_i(struct kdnode *node, const double *pos, struct kdnode *
 	double *nearer_hyperrect_coord, *farther_hyperrect_coord;
 
 	/* Decide whether to go left or right in the tree */
-	dummy = pos[dir] - node->pos[dir];
+	// dummy = pos[dir] - node->pos[dir];
+	dummy = angleDifference(pos[dir],node->pos[dir]);
 	if (dummy <= 0) {
 		nearer_subtree = node->left;
 		farther_subtree = node->right;
@@ -345,7 +375,8 @@ static void kd_nearest_i(struct kdnode *node, const double *pos, struct kdnode *
 	 * with our best so far */
 	dist_sq = 0;
 	for(i=0; i < rect->dim; i++) {
-		dist_sq += SQ(node->pos[i] - pos[i]);
+		// dist_sq += SQ(node->pos[i] - pos[i]);
+		dist_sq += SQ(angleDifference(node->pos[i],pos[i]));
 	}
 	if (dist_sq < *result_dist_sq) {
 		*result = node;
@@ -400,10 +431,13 @@ struct kdres *kd_nearest(struct kdtree *kd, const double *pos)
 	result = kd->root;
 	dist_sq = 0;
 	for (i = 0; i < kd->dim; i++)
-		dist_sq += SQ(result->pos[i] - pos[i]);
+		dist_sq += SQ(angleDifference(result->pos[i], pos[i]));
+		// dist_sq += SQ(result->pos[i] - pos[i]);
 
 	/* Search for the nearest neighbour recursively */
 	kd_nearest_i(kd->root, pos, &result, &dist_sq, rect);
+
+	printf("nearest %f\n", result->pos[0]);
 
 	/* Free the copy of the hyperrect */
 	hyperrect_free(rect);
@@ -716,9 +750,11 @@ static double hyperrect_dist_sq(struct kdhyperrect *rect, const double *pos)
 
 	for (i=0; i < rect->dim; i++) {
 		if (pos[i] < rect->min[i]) {
-			result += SQ(rect->min[i] - pos[i]);
+			// result += SQ(rect->min[i] - pos[i]);
+			result += SQ(angleDifference(rect->min[i],pos[i]));
 		} else if (pos[i] > rect->max[i]) {
-			result += SQ(rect->max[i] - pos[i]);
+			// result += SQ(rect->max[i] - pos[i]);
+			result += SQ(angleDifference(rect->max[i],pos[i]));
 		}
 	}
 
