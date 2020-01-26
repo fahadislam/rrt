@@ -24,9 +24,9 @@ public:
     virtual void GetPlan(std::vector<std::vector<double>>& path) = 0;
     void SaveStartGoalPairs(int numPairs);
 protected:
-    typedef boost::adjacency_list<boost::listS, boost::vecS, boost::bidirectionalS, Node*> Graph_t;
-    typedef Graph_t::vertex_descriptor Vertex_t;
-    typedef Graph_t::edge_descriptor Edge_t;
+    // typedef boost::adjacency_list<boost::listS, boost::vecS, boost::bidirectionalS, Node*> Graph_t;
+    // typedef Graph_t::vertex_descriptor Vertex_t;
+    // typedef Graph_t::edge_descriptor Edge_t;
 
     double angleDifference(double angle1, double angle2);
     double wrapAngle(double angle);

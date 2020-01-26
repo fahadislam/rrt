@@ -27,9 +27,19 @@ OF SUCH DAMAGE.
 #ifndef _KDTREE_H_
 #define _KDTREE_H_
 
+#include <boost/graph/adjacency_list.hpp>
+#include "Node.hpp"
+
+class Node; 
+
+typedef boost::adjacency_list<boost::listS, boost::vecS, boost::bidirectionalS, Node*> Graph_t;
+typedef Graph_t::vertex_descriptor Vertex_t;
+typedef Graph_t::edge_descriptor Edge_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 struct kdhyperrect {
 	int dim;
@@ -40,7 +50,7 @@ struct kdnode {
 	double *pos;
 	int dir;
 	void *data;
-
+	Vertex_t graph_vertex;
 	struct kdnode *left, *right;	/* negative/positive side */
 };
 
@@ -80,6 +90,7 @@ void kd_data_destructor(struct kdtree *tree, void (*destr)(void*));
 
 /* insert a node, specifying its position, and optional data */
 int kd_insert(struct kdtree *tree, const double *pos, void *data);
+int kd_insert_vertex(struct kdtree *tree, const double *pos, Vertex_t vertex);
 int kd_insertf(struct kdtree *tree, const float *pos, void *data);
 int kd_insert3(struct kdtree *tree, double x, double y, double z, void *data);
 int kd_insert3f(struct kdtree *tree, float x, float y, float z, void *data);
@@ -89,6 +100,7 @@ int kd_insert3f(struct kdtree *tree, float x, float y, float z, void *data);
  * This function returns a pointer to a result set with at most one element.
  */
 struct kdres *kd_nearest(struct kdtree *tree, const double *pos);
+struct kdnode *kd_nearest_node(struct kdtree *tree, const double *pos);
 struct kdres *kd_nearestf(struct kdtree *tree, const float *pos);
 struct kdres *kd_nearest3(struct kdtree *tree, double x, double y, double z);
 struct kdres *kd_nearest3f(struct kdtree *tree, float x, float y, float z);

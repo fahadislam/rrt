@@ -6,6 +6,8 @@
 #include <iostream>
 #include <limits>
 #include <fstream>
+#include <stdlib.h>     /* srand, rand */
+
 using namespace std;
 using namespace boost;
 
@@ -17,6 +19,7 @@ m_nDof(nDof)
 {
 	m_jointLowerLimit = -M_PI;
 	m_jointUpperLimit = M_PI;
+	srand (100);
 
 }
 
@@ -320,12 +323,15 @@ Node* Plan::sampleNodeGoalBiasGaussian(double goalSampleProbability, double gaus
 	return sampledNode;
 }
 
-Plan::Vertex_t Plan::getNearestNeighbor(Node* node, Graph_t& graph, kdtree* kd)
+Vertex_t Plan::getNearestNeighbor(Node* node, Graph_t& graph, kdtree* kd)
 {
 	printf("=============Finding NN================\n");
-	kdres* q_near_kd = kd_nearest(kd, &node->GetAngles()[0]);
-	Vertex_t* q_near_n = (Vertex_t*) kd_res_item_data(q_near_kd);
-	kd_res_free(q_near_kd);
+	// kdres* q_near_kd = kd_nearest(kd, &node->GetAngles()[0]);
+	kdnode* q_near_kd = kd_nearest_node(kd, &node->GetAngles()[0]);
+	// Vertex_t* q_near_n = (Vertex_t*) kd_res_item_data(q_near_kd);
+	// Vertex_t* q_near_n = (Vertex_t*) q_near_kd->data;
+	Vertex_t q_near_n =  q_near_kd->graph_vertex;
+	// kd_res_free(q_near_kd);
 
 	//=========================================================
 
@@ -349,7 +355,7 @@ Plan::Vertex_t Plan::getNearestNeighbor(Node* node, Graph_t& graph, kdtree* kd)
 		}
 	}
 
-	if (nearestNeigbor != *q_near_n) {
+	if (nearestNeigbor != q_near_n) {
 
 		printGraph(m_graph);
 		printf("***Mismatch***\n");
@@ -358,18 +364,26 @@ Plan::Vertex_t Plan::getNearestNeighbor(Node* node, Graph_t& graph, kdtree* kd)
 		printf("brute force nn:\n");
 		getNodePtrFromVertex(nearestNeigbor, graph)->PrintNode();
 		printf("kdtree nn:\n");
-		getNodePtrFromVertex(*q_near_n, graph)->PrintNode();
+		getNodePtrFromVertex(q_near_n, graph)->PrintNode();
+		printf("kdnode pos : %f", q_near_kd->pos[0]);
 		getchar();
 	}
-	// else {
-	// 	printf("right\n");
-	// }
+	else {
+		printGraph(m_graph);
+		printf("***Right***\n");
+		printf("node:\n");
+		node->PrintNode();
+		printf("brute force nn:\n");
+		getNodePtrFromVertex(nearestNeigbor, graph)->PrintNode();
+		printf("kdtree nn:\n");
+		getNodePtrFromVertex(q_near_n, graph)->PrintNode();
+	}
 
-	return *q_near_n;
+	return q_near_n;
 	// return nearestNeigbor;
 }
 
-std::vector<Plan::Vertex_t> Plan::getNeighborVertices(Node* node, double radius, Graph_t& graph)
+std::vector<Vertex_t> Plan::getNeighborVertices(Node* node, double radius, Graph_t& graph)
 {
 	Graph_t::vertex_iterator itVBegin, itVEnd; 
 	tie(itVBegin, itVEnd) = vertices(graph);
@@ -412,7 +426,7 @@ double Plan::calculateNodeDistance(Node* node1, Node* node2)
  *
  * @return     { description_of_the_return_value }
  */
-Plan::Edge_t Plan::addEdge(Vertex_t vertexSource, Vertex_t vertexDest, Graph_t& graph)
+Edge_t Plan::addEdge(Vertex_t vertexSource, Vertex_t vertexDest, Graph_t& graph)
 {
 	Node* nodeSource = getNodePtrFromVertex(vertexSource, graph);
 	Node* nodeDest = getNodePtrFromVertex(vertexDest, graph);
@@ -422,7 +436,7 @@ Plan::Edge_t Plan::addEdge(Vertex_t vertexSource, Vertex_t vertexDest, Graph_t& 
 	return edgePair.first;
 }
 
-Plan::Edge_t Plan::addEdge(Vertex_t vertexSource, Vertex_t vertexDest, double cost, Graph_t& graph)
+Edge_t Plan::addEdge(Vertex_t vertexSource, Vertex_t vertexDest, double cost, Graph_t& graph)
 {
 	getNodePtrFromVertex(vertexDest, graph)->SetCost(cost);
 	pair<Edge_t, bool> edgePair = add_edge(vertexSource, vertexDest, graph);

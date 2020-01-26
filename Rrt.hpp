@@ -2,6 +2,8 @@
 #define RRT_HPP
 #include "Plan.hpp"
 
+#include "kdtree.h"
+
 class Rrt : public Plan
 {
 

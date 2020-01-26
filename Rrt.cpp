@@ -58,9 +58,12 @@ bool Rrt::RunPlanner()
 		// printf("inserting\n");
   // 		getNodePtrFromVertex(newNodeVertex, m_graph)->PrintNode();
   // 		getchar();
-  		kd_insert(kd, &newNode->GetAngles()[0], &newNodeVertex);
 
 		addEdge(nearestNeighborVertex, newNodeVertex, m_graph);
+		
+  		// kd_insert(kd, &newNode->GetAngles()[0], &newNodeVertex);
+  		kd_insert_vertex(kd, &newNode->GetAngles()[0], newNodeVertex);
+
 		double distToGoal = calculateNodeDistance(newNode,m_goalNode);
 		if (distToGoal < m_terminationDistance)
 		{
@@ -222,7 +225,7 @@ vector<vector<double>> Rrt::findPathFromVertexAToB(Vertex_t vertexA, Vertex_t ve
 	return path;
 }
 
-vector<Plan::Vertex_t> Rrt::getChildren(Vertex_t vertex, Graph_t& graph)
+vector<Vertex_t> Rrt::getChildren(Vertex_t vertex, Graph_t& graph)
 {
 	Graph_t::out_edge_iterator eItBegin, eItEnd;
 	tie(eItBegin, eItEnd) = out_edges(vertex, graph);

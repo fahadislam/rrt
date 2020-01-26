@@ -189,9 +189,53 @@ static int insert_rec(struct kdnode **nptr, const double *pos, void *data, int d
 	return insert_rec(&(*nptr)->right, pos, data, new_dir, dim);
 }
 
+static int insert_rec_vertex(struct kdnode **nptr, const double *pos, Vertex_t vertex, int dir, int dim)
+{
+	int new_dir;
+	struct kdnode *node;
+
+	if(!*nptr) {
+		if(!(node = (kdnode*)malloc(sizeof *node))) {
+			return -1;
+		}
+		if(!(node->pos = (double*)malloc(dim * sizeof *node->pos))) {
+			free(node);
+			return -1;
+		}
+		memcpy(node->pos, pos, dim * sizeof *node->pos);
+		node->graph_vertex = vertex;
+		node->dir = dir;
+		node->left = node->right = 0;
+		*nptr = node;
+		return 0;
+	}
+
+	node = *nptr;
+	new_dir = (node->dir + 1) % dim;
+	if(pos[node->dir] < node->pos[node->dir]) {
+		return insert_rec_vertex(&(*nptr)->left, pos, vertex, new_dir, dim);
+	}
+	return insert_rec_vertex(&(*nptr)->right, pos, vertex, new_dir, dim);
+}
+
 int kd_insert(struct kdtree *tree, const double *pos, void *data)
 {
 	if (insert_rec(&tree->root, pos, data, 0, tree->dim)) {
+		return -1;
+	}
+
+	if (tree->rect == 0) {
+		tree->rect = hyperrect_create(tree->dim, pos, pos);
+	} else {
+		hyperrect_extend(tree->rect, pos);
+	}
+
+	return 0;
+}
+
+int kd_insert_vertex(struct kdtree *tree, const double *pos, Vertex_t vertex)
+{
+	if (insert_rec_vertex(&tree->root, pos, vertex, 0, tree->dim)) {
 		return -1;
 	}
 
@@ -451,6 +495,59 @@ struct kdres *kd_nearest(struct kdtree *kd, const double *pos)
 		rset->size = 1;
 		kd_res_rewind(rset);
 		return rset;
+	} else {
+		kd_res_free(rset);
+		return 0;
+	}
+}
+
+
+struct kdnode *kd_nearest_node(struct kdtree *kd, const double *pos)
+{
+	struct kdhyperrect *rect;
+	struct kdnode *result;
+	struct kdres *rset;
+	double dist_sq;
+	int i;
+
+	if (!kd) return 0;
+	if (!kd->rect) return 0;
+
+	/* Allocate result set */
+	if(!(rset = (kdres*)malloc(sizeof *rset))) {
+		return 0;
+	}
+	if(!(rset->rlist = (res_node*)alloc_resnode())) {
+		free(rset);
+		return 0;
+	}
+	rset->rlist->next = 0;
+	rset->tree = kd;
+
+	/* Duplicate the bounding hyperrectangle, we will work on the copy */
+	if (!(rect = hyperrect_duplicate(kd->rect))) {
+		kd_res_free(rset);
+		return 0;
+	}
+
+	/* Our first guesstimate is the root node */
+	result = kd->root;
+	dist_sq = 0;
+	for (i = 0; i < kd->dim; i++)
+		dist_sq += SQ(angleDifference(result->pos[i], pos[i]));
+		// dist_sq += SQ(result->pos[i] - pos[i]);
+
+	/* Search for the nearest neighbour recursively */
+	kd_nearest_i(kd->root, pos, &result, &dist_sq, rect);
+
+	printf("nearest %f\n", result->pos[0]);
+
+	/* Free the copy of the hyperrect */
+	hyperrect_free(rect);
+
+	/* Store the result */
+	if (result) {
+		return result;
 	} else {
 		kd_res_free(rset);
 		return 0;
